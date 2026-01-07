@@ -12,12 +12,15 @@ export interface Event {
   ticketTypes: TicketType[];
 }
 
+export type PaymentStatus = 'Pago' | 'A pagar';
+export type PaymentMethod = 'PIX' | 'Débito' | 'Crédito' | 'Dinheiro';
+
 export interface Ticket {
   id: string;
   ticketTypeId: string;
   saleId: string;
   checkedIn: boolean;
-  uniqueTicketNumber: string; // Individual ID: e.g., EVT-2024-0001
+  uniqueTicketNumber: string; // Ex: #1001
 }
 
 export interface Sale {
@@ -25,12 +28,15 @@ export interface Sale {
   eventId: string;
   customerName: string;
   customerPhone: string;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  details?: string;
   tickets: Ticket[];
-  orderNumber: string; // Group/Order ID
+  orderNumber: string; // Group ID: Ex: ORD-2024-001
   timestamp: number;
 }
 
-export type ModalType = 'NONE' | 'CREATE_EVENT' | 'MENU' | 'DASHBOARD' | 'SALE' | 'MANUAL_VALIDATION' | 'ATTENDEE_LIST' | 'SCANNER';
+export type ModalType = 'NONE' | 'CREATE_EVENT' | 'MENU' | 'DASHBOARD' | 'SALE' | 'MANUAL_VALIDATION' | 'ATTENDEE_LIST';
 
 export interface ModalState {
   type: ModalType;

@@ -22,7 +22,7 @@ const TicketCard: React.FC<TicketCardProps> = ({ sale, event }) => {
         backgroundColor: "#ffffff"
       }).then((canvas: HTMLCanvasElement) => {
         const link = document.createElement('a');
-        link.download = `Comprovante_APAE_${sale.orderNumber}.png`;
+        link.download = `Ticket_APAE_${sale.orderNumber}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
         if (isMobile) alert("Comprovante salvo na galeria.");
@@ -40,61 +40,58 @@ const TicketCard: React.FC<TicketCardProps> = ({ sale, event }) => {
         ref={containerRef}
         className="w-full max-w-sm bg-white text-gray-900 p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden"
       >
-        <div className="text-center mb-8">
-          <div className="bg-indigo-600 text-white text-[10px] font-black py-1.5 px-4 rounded-full inline-block uppercase tracking-[0.2em] mb-4 shadow-lg shadow-indigo-100">
+        <div className="text-center mb-6">
+          <div className="bg-indigo-600 text-white text-[10px] font-black py-1.5 px-4 rounded-full inline-block uppercase tracking-[0.2em] mb-3">
             APAE EVENTOS
           </div>
-          <h3 className="text-2xl font-black text-gray-800 leading-tight uppercase tracking-tighter">{event.name}</h3>
-          <p className="text-xs font-black text-gray-400 mt-1 uppercase tracking-widest">{formatDate(event.date)}</p>
+          <h3 className="text-xl font-black text-gray-800 uppercase">{event.name}</h3>
+          <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{formatDate(event.date)}</p>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
-            <div className="mb-4 pb-4 border-b border-gray-200">
-              <p className="text-[10px] uppercase font-black text-gray-400 mb-1">Responsável</p>
-              <p className="text-lg font-black text-gray-800 truncate">{sale.customerName}</p>
-              <p className="text-xs font-bold text-gray-500">{sale.customerPhone}</p>
+        <div className="space-y-4">
+          <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100">
+            <div className="mb-3 border-b border-gray-200 pb-2">
+              <p className="text-[9px] uppercase font-black text-gray-400 mb-0.5">Participante</p>
+              <p className="text-md font-black text-gray-800">{sale.customerName}</p>
             </div>
             
-            <div className="mb-2">
-              <p className="text-[10px] uppercase font-black text-gray-400 mb-2">Ingressos Individuais</p>
-              <div className="space-y-2">
-                {sale.tickets.map((t, i) => (
-                  <div key={t.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100">
-                    <span className="text-xs font-black text-indigo-600">{t.uniqueTicketNumber}</span>
-                    <span className="text-[10px] font-black text-gray-400 uppercase">
-                      {event.ticketTypes.find(tt => tt.id === t.ticketTypeId)?.name}
-                    </span>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div>
+                <p className="text-[9px] uppercase font-black text-gray-400">Pagamento</p>
+                <p className={`text-xs font-black ${sale.paymentStatus === 'Pago' ? 'text-emerald-600' : 'text-amber-500'}`}>
+                  {sale.paymentStatus} ({sale.paymentMethod})
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] uppercase font-black text-gray-400">Pedido</p>
+                <p className="text-xs font-black text-indigo-600">{sale.orderNumber}</p>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-between items-center px-4">
-             <div>
-                <p className="text-[10px] uppercase font-black text-gray-300">Pedido</p>
-                <p className="text-sm font-black text-gray-500">#{sale.orderNumber}</p>
-             </div>
-             <div className="text-right">
-                <p className="text-[10px] uppercase font-black text-gray-300">Total Pago</p>
-                <p className="text-lg font-black text-indigo-600">
-                  R$ {sale.tickets.reduce((acc, t) => acc + (event.ticketTypes.find(tt => tt.id === t.ticketTypeId)?.price || 0), 0).toFixed(2)}
-                </p>
-             </div>
+            <div className="space-y-1.5">
+              <p className="text-[9px] uppercase font-black text-gray-400">Ingressos Individuais</p>
+              {sale.tickets.map((t) => (
+                <div key={t.id} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-gray-100">
+                  <span className="text-xs font-black text-indigo-600">{t.uniqueTicketNumber}</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">
+                    {event.ticketTypes.find(tt => tt.id === t.ticketTypeId)?.name}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-50 text-center">
-          <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em]">Autenticação Manual Requerida</p>
+        <div className="mt-6 pt-4 border-t border-gray-50 text-center">
+          <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.3em]">Validar na entrada via lista manual</p>
         </div>
       </div>
 
       <button 
         onClick={downloadSummary}
-        className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 px-10 rounded-2xl flex items-center gap-3 transition-all shadow-xl active:scale-95"
+        className="mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 px-8 rounded-2xl flex items-center gap-2 transition-all shadow-xl active:scale-95"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         <span>BAIXAR COMPROVANTE</span>
       </button>
     </div>
