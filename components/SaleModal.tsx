@@ -52,11 +52,15 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
     });
 
     if (customerName && tickets.length > 0) {
+      // Fix: Ensure properties defined in Omit<Sale, 'id'> are present. 
+      // Although App.tsx generates orderNumber and timestamp, the type definition of onSave requires them.
       const saleToSave: Omit<Sale, 'id'> = {
         eventId: event.id,
         customerName,
         customerPhone,
         tickets,
+        orderNumber: '', // Will be calculated in parent onSave
+        timestamp: Date.now() // Will be set in parent onSave
       };
       const savedSale = onSave(saleToSave);
       setCompletedSale(savedSale);

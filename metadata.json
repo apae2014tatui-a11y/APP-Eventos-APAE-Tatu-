@@ -1,7 +1,5 @@
 {
-  "name": "Gerenciador de Eventos APAE app by Cleber",
-  "description": "Uma aplicação robusta para gerenciar eventos, vendas de ingressos, acompanhamento financeiro e validação de entrada por QR Code.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "name": "Gerenciador APAE - Validação Manual",
+  "description": "Sistema de gestão de eventos focado em validação manual simplificada para Android e Windows.",
+  "requestFramePermissions": []
 }
