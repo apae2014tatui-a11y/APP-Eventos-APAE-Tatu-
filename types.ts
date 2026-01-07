@@ -21,6 +21,7 @@ export interface Ticket {
   saleId: string;
   checkedIn: boolean;
   uniqueTicketNumber: string; // Ex: #1001
+  paymentStatus: PaymentStatus; // Agora individual por ingresso
 }
 
 export interface Sale {
@@ -28,12 +29,12 @@ export interface Sale {
   eventId: string;
   customerName: string;
   customerPhone: string;
-  paymentStatus: PaymentStatus;
+  paymentStatus: PaymentStatus; // Status geral do pedido (padrão)
   paymentMethod: PaymentMethod;
   details?: string;
   tickets: Ticket[];
-  orderNumber: string; // Group ID: Ex: ORD-2024-001
-  timestamp: string; // ISO String para compatibilidade com DB
+  orderNumber: string;
+  timestamp: string;
 }
 
 export type ModalType = 'NONE' | 'CREATE_EVENT' | 'MENU' | 'DASHBOARD' | 'SALE' | 'MANUAL_VALIDATION' | 'ATTENDEE_LIST';
