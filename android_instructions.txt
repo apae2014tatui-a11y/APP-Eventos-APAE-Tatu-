@@ -1,18 +1,28 @@
 
-CONFIGURAÇÃO ANDROID (VERSÃO SIMPLIFICADA):
+CONFIGURAÇÃO ANDROID COM FIREBASE CLOUD SYNC:
 
-O aplicativo agora funciona exclusivamente via Validação Manual, removendo a necessidade de acesso à câmera.
+1. Firebase Setup:
+   - Vá ao console do Firebase (console.firebase.google.com).
+   - Crie um projeto "APAE Eventos".
+   - Adicione um app Android (registre o package name ex: com.apae.eventos).
+   - Baixe o arquivo 'google-services.json' e coloque em: android/app/
 
-1. No arquivo: android/app/src/main/AndroidManifest.xml
-Você pode remover todas as permissões de CAMERA se elas existirem.
-Adicione apenas se desejar salvar comprovantes na Galeria:
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
-2. pubspec.yaml sugerido:
+2. pubspec.yaml atualizado:
     dependencies:
+      firebase_core: ^2.24.2
+      cloud_firestore: ^4.14.0
       path_provider: ^2.1.2
       gallery_saver: ^2.3.2
-      # Plugins de QR Code/Camera podem ser removidos.
 
-3. Instruções de Uso:
-Na recepção do evento, use a barra de busca para localizar o participante pelo Nome ou pelo Número do Pedido (Ex: #2024-001).
+3. main.dart (Inicialização):
+    void main() async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await Firebase.initializeApp();
+      // Ativar persistência offline no Flutter
+      FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
+      runApp(MyApp());
+    }
+
+4. AndroidManifest.xml:
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
