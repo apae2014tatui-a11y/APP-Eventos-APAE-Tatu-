@@ -7,7 +7,8 @@ import TicketCard from './TicketCard';
 interface SaleModalProps {
   event: Event;
   onClose: () => void;
-  onSave: (saleData: any) => Sale;
+  // Fixed: Changed onSave return type to Promise<Sale> to match the actual implementation in App.tsx
+  onSave: (saleData: any) => Promise<Sale>;
 }
 
 interface CartItem {
@@ -39,7 +40,8 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
     });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fixed: Made handleSubmit async to handle the promise from onSave
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const totalQty = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -54,8 +56,13 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
         ticketRequests: cart.map(item => ({ typeId: item.ticketTypeId, qty: item.quantity }))
       };
       
-      const savedSale = onSave(saleRequest);
-      setCompletedSale(savedSale);
+      try {
+        // Fixed: Added await when calling onSave
+        const savedSale = await onSave(saleRequest);
+        setCompletedSale(savedSale);
+      } catch (error) {
+        console.error("Erro ao salvar venda:", error);
+      }
     } else {
        alert("Por favor, preencha todos os campos obrigatórios (Nome, Telefone e Ingressos).");
     }

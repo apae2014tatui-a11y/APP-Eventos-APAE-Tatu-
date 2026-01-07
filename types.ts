@@ -33,7 +33,7 @@ export interface Sale {
   details?: string;
   tickets: Ticket[];
   orderNumber: string; // Group ID: Ex: ORD-2024-001
-  timestamp: number;
+  timestamp: string; // ISO String para compatibilidade com DB
 }
 
 export type ModalType = 'NONE' | 'CREATE_EVENT' | 'MENU' | 'DASHBOARD' | 'SALE' | 'MANUAL_VALIDATION' | 'ATTENDEE_LIST';
