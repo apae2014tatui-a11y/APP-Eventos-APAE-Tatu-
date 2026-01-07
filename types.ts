@@ -12,7 +12,7 @@ export interface Event {
   ticketTypes: TicketType[];
 }
 
-export type PaymentStatus = 'Pago' | 'A pagar';
+export type PaymentStatus = 'Pago' | 'A pagar' | 'Verificar depois';
 export type PaymentMethod = 'PIX' | 'Débito' | 'Crédito' | 'Dinheiro';
 
 export interface Ticket {

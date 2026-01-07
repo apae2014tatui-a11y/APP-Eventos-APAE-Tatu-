@@ -26,7 +26,7 @@ const App: React.FC = () => {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [sales, setSales] = useState<Sale[]>([]);
   const [modalState, setModalState] = useState<ModalState>({ type: 'NONE' });
-  const [ticketSeq, setTicketSeq] = useState(1001); // Starting sequential ID
+  const [ticketSeq, setTicketSeq] = useState(1001);
 
   const handleOpenModal = (type: ModalState['type'], event?: Event) => {
     setModalState({ type, event });
@@ -112,6 +112,15 @@ const App: React.FC = () => {
     }));
   }, []);
 
+  const updatePaymentStatus = useCallback((saleId: string, newStatus: PaymentStatus) => {
+    setSales(prevSales => prevSales.map(sale => {
+      if (sale.id === saleId) {
+        return { ...sale, paymentStatus: newStatus };
+      }
+      return sale;
+    }));
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans pb-20">
       <Header onManualValidation={() => handleOpenModal('MANUAL_VALIDATION')} />
@@ -151,10 +160,20 @@ const App: React.FC = () => {
         <SaleModal event={modalState.event} onClose={handleCloseModal} onSave={addSale} />
       )}
       {modalState.type === 'MANUAL_VALIDATION' && (
-        <ManualValidationModal events={events} sales={sales} onToggleCheckIn={toggleCheckIn} onClose={handleCloseModal} />
+        <ManualValidationModal 
+          events={events} 
+          sales={sales} 
+          onToggleCheckIn={toggleCheckIn} 
+          onUpdatePaymentStatus={updatePaymentStatus}
+          onClose={handleCloseModal} 
+        />
       )}
       {modalState.type === 'ATTENDEE_LIST' && modalState.event && (
-        <AttendeeListModal event={modalState.event} sales={sales.filter(s => s.eventId === modalState.event!.id)} onClose={handleCloseModal} />
+        <AttendeeListModal 
+          event={modalState.event} 
+          sales={sales.filter(s => s.eventId === modalState.event!.id)} 
+          onClose={handleCloseModal} 
+        />
       )}
     </div>
   );

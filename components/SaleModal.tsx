@@ -99,22 +99,23 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Status do Pagamento *</label>
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-              {(['Pago', 'A pagar'] as PaymentStatus[]).map(status => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => setPaymentStatus(status)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${paymentStatus === status ? 'bg-white dark:bg-gray-600 shadow-sm text-indigo-600' : 'text-gray-400'}`}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
+        <div>
+          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Status do Pagamento *</label>
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1 gap-1">
+            {(['Pago', 'A pagar', 'Verificar depois'] as PaymentStatus[]).map(status => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setPaymentStatus(status)}
+                className={`flex-1 py-2 rounded-lg text-[9px] font-black transition-all uppercase ${paymentStatus === status ? 'bg-white dark:bg-gray-600 shadow-sm text-indigo-600' : 'text-gray-400'}`}
+              >
+                {status}
+              </button>
+            ))}
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Forma de Pagamento *</label>
             <select
