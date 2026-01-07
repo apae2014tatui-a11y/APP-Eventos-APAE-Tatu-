@@ -17,6 +17,7 @@ export interface Ticket {
   ticketTypeId: string;
   saleId: string;
   checkedIn: boolean;
+  uniqueTicketNumber: string; // Individual ID: e.g., EVT-2024-0001
 }
 
 export interface Sale {
@@ -25,11 +26,11 @@ export interface Sale {
   customerName: string;
   customerPhone: string;
   tickets: Ticket[];
-  orderNumber: string; // Sequential identifier
+  orderNumber: string; // Group/Order ID
   timestamp: number;
 }
 
-export type ModalType = 'NONE' | 'CREATE_EVENT' | 'MENU' | 'DASHBOARD' | 'SALE' | 'SCANNER' | 'MANUAL_VALIDATION' | 'ATTENDEE_LIST';
+export type ModalType = 'NONE' | 'CREATE_EVENT' | 'MENU' | 'DASHBOARD' | 'SALE' | 'MANUAL_VALIDATION' | 'ATTENDEE_LIST' | 'SCANNER';
 
 export interface ModalState {
   type: ModalType;

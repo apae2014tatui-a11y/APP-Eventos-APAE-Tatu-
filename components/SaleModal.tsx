@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { Event, Sale, Ticket } from '../types';
+import { Event, Sale } from '../types';
 import Modal from './Modal';
 import TicketCard from './TicketCard';
 
 interface SaleModalProps {
   event: Event;
   onClose: () => void;
-  onSave: (sale: Omit<Sale, 'id'>) => Sale;
+  onSave: (saleData: any) => Sale;
 }
 
 interface CartItem {
@@ -38,31 +38,17 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const saleId = `sale-${Date.now()}`;
-    const tickets: Ticket[] = [];
-    cart.forEach(item => {
-        for (let i = 0; i < item.quantity; i++) {
-            tickets.push({
-                id: `tkt-${saleId}-${item.ticketTypeId}-${i}`,
-                ticketTypeId: item.ticketTypeId,
-                saleId: saleId,
-                checkedIn: false
-            });
-        }
-    });
+    const totalQty = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-    if (customerName && tickets.length > 0) {
-      // Fix: Ensure properties defined in Omit<Sale, 'id'> are present. 
-      // Although App.tsx generates orderNumber and timestamp, the type definition of onSave requires them.
-      const saleToSave: Omit<Sale, 'id'> = {
+    if (customerName && totalQty > 0) {
+      const saleRequest = {
         eventId: event.id,
         customerName,
         customerPhone,
-        tickets,
-        orderNumber: '', // Will be calculated in parent onSave
-        timestamp: Date.now() // Will be set in parent onSave
+        ticketRequests: cart.map(item => ({ typeId: item.ticketTypeId, qty: item.quantity }))
       };
-      const savedSale = onSave(saleToSave);
+      
+      const savedSale = onSave(saleRequest);
       setCompletedSale(savedSale);
     } else {
        alert("Preencha o nome do cliente e selecione pelo menos um ingresso.");
@@ -76,59 +62,67 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
 
   if (completedSale) {
     return (
-        <Modal title="Venda Realizada com Sucesso!" onClose={onClose}>
+        <Modal title="Venda Realizada!" onClose={onClose}>
             <TicketCard sale={completedSale} event={event} />
         </Modal>
     );
   }
 
   return (
-    <Modal title={`Venda de Ingressos: ${event.name}`} onClose={onClose}>
+    <Modal title={`Nova Venda: ${event.name}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome do Cliente</label>
-          <input
-            type="text" id="customerName" value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
-            required
-          />
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Nome do Cliente</label>
+            <input
+              type="text" value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Telefone de Contato</label>
+            <input
+              type="tel" value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              className="w-full p-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold"
+              placeholder="(00) 00000-0000"
+            />
+          </div>
         </div>
+
         <div>
-          <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Telefone (Opcional)</label>
-          <input
-            type="tel" id="customerPhone" value={customerPhone}
-            onChange={(e) => setCustomerPhone(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
-          />
-        </div>
-        <div>
-            <h3 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Selecionar Ingressos</h3>
-            <div className="space-y-3">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Escolher Ingressos</h3>
+            <div className="space-y-2">
                 {event.ticketTypes.map(tt => (
-                    <div key={tt.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                    <div key={tt.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-indigo-100 transition-all">
                         <div>
-                            <p className="font-semibold">{tt.name}</p>
-                            <p className="text-sm text-green-600 dark:text-green-400">R$ {tt.price.toFixed(2)}</p>
+                            <p className="font-black text-gray-800">{tt.name}</p>
+                            <p className="text-sm font-bold text-indigo-600">R$ {tt.price.toFixed(2)}</p>
                         </div>
-                        <input
-                            type="number"
-                            min="0"
-                            onChange={(e) => updateCart(tt.id, parseInt(e.target.value) || 0)}
-                            className="w-20 px-2 py-1 text-center bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"
-                        />
+                        <div className="flex items-center gap-3">
+                           <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              onChange={(e) => updateCart(tt.id, parseInt(e.target.value) || 0)}
+                              className="w-16 p-2 text-center bg-white border-none rounded-lg focus:ring-2 focus:ring-indigo-500 font-black"
+                          />
+                        </div>
                     </div>
                 ))}
             </div>
         </div>
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-600 flex justify-between items-center">
-            <p className="text-lg font-bold">Total:</p>
-            <p className="text-xl font-bold text-green-600 dark:text-green-400">R$ {total.toFixed(2)}</p>
-        </div>
-        <div className="flex justify-end">
-          <button type="submit" className="px-6 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors font-semibold">
-            Salvar Venda
-          </button>
+
+        <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase">Total do Pedido</p>
+              <p className="text-2xl font-black text-indigo-600">R$ {total.toFixed(2)}</p>
+            </div>
+            <button type="submit" className="px-8 py-3 rounded-2xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all font-black uppercase tracking-tight shadow-lg shadow-indigo-100 active:scale-95">
+              Confirmar Venda
+            </button>
         </div>
       </form>
     </Modal>

@@ -27,6 +27,10 @@ const App: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [modalState, setModalState] = useState<ModalState>({ type: 'NONE' });
 
+  // Tracking total tickets sold across all events to maintain a global sequential counter
+  // In a real app, this would be scoped per event or global DB sequence
+  const [globalTicketCounter, setGlobalTicketCounter] = useState(1);
+
   const handleOpenModal = (type: ModalState['type'], event?: Event) => {
     setModalState({ type, event });
   };
@@ -48,16 +52,40 @@ const App: React.FC = () => {
     }
   };
   
-  const addSale = (saleData: Omit<Sale, 'id' | 'orderNumber' | 'timestamp'>) => {
+  const addSale = (saleData: Omit<Sale, 'id' | 'orderNumber' | 'timestamp' | 'tickets'> & { ticketRequests: { typeId: string, qty: number }[] }) => {
     const year = new Date().getFullYear();
     const orderCount = sales.filter(s => s.eventId === saleData.eventId).length + 1;
-    const orderNumber = `${year}-${orderCount.toString().padStart(3, '0')}`;
+    const orderNumber = `ORD-${year}-${orderCount.toString().padStart(3, '0')}`;
+    const saleId = `sale-${Date.now()}`;
+    
+    let currentCounter = globalTicketCounter;
+    const individualTickets: Ticket[] = [];
+
+    saleData.ticketRequests.forEach(req => {
+      for (let i = 0; i < req.qty; i++) {
+        individualTickets.push({
+          id: `tkt-${Date.now()}-${currentCounter}`,
+          saleId: saleId,
+          ticketTypeId: req.typeId,
+          checkedIn: false,
+          uniqueTicketNumber: `EVT-${year}-${currentCounter.toString().padStart(4, '0')}`
+        });
+        currentCounter++;
+      }
+    });
+
+    setGlobalTicketCounter(currentCounter);
+
     const newSale: Sale = { 
-      ...saleData, 
-      id: `sale-${Date.now()}`,
+      eventId: saleData.eventId,
+      customerName: saleData.customerName,
+      customerPhone: saleData.customerPhone,
+      id: saleId,
       orderNumber,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      tickets: individualTickets
     };
+
     setSales(prev => [...prev, newSale]);
     return newSale;
   };
