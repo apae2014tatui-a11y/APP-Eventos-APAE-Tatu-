@@ -1,14 +1,13 @@
 
 import React, { useState } from 'react';
-import { Event, Sale, PaymentStatus, PaymentMethod } from '../types';
+import { Event, Sale, Ticket, PaymentStatus, PaymentMethod } from '../types';
 import Modal from './Modal';
 import TicketCard from './TicketCard';
 
 interface SaleModalProps {
   event: Event;
   onClose: () => void;
-  // Fixed: Changed onSave return type to Promise<Sale> to match the actual implementation in App.tsx
-  onSave: (saleData: any) => Promise<Sale>;
+  onSave: (saleData: any) => Promise<Ticket[]>;
 }
 
 interface CartItem {
@@ -23,7 +22,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [details, setDetails] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [completedTickets, setCompletedTickets] = useState<Ticket[] | null>(null);
 
   const updateCart = (ticketTypeId: string, quantity: number) => {
     setCart(currentCart => {
@@ -40,7 +39,6 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
     });
   };
   
-  // Fixed: Made handleSubmit async to handle the promise from onSave
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const totalQty = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -57,11 +55,11 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
       };
       
       try {
-        // Fixed: Added await when calling onSave
-        const savedSale = await onSave(saleRequest);
-        setCompletedSale(savedSale);
+        const savedTickets = await onSave(saleRequest);
+        setCompletedTickets(savedTickets);
       } catch (error) {
         console.error("Erro ao salvar venda:", error);
+        alert("Ocorreu um erro ao registrar a venda. Por favor, tente novamente.");
       }
     } else {
        alert("Por favor, preencha todos os campos obrigatórios (Nome, Telefone e Ingressos).");
@@ -73,7 +71,21 @@ const SaleModal: React.FC<SaleModalProps> = ({ event, onClose, onSave }) => {
       return acc + (ticketType ? ticketType.price * item.quantity : 0);
   }, 0);
 
-  if (completedSale) {
+  if (completedTickets && completedTickets.length > 0) {
+    // Monta um objeto Sale de conveniência para o TicketCard
+    const completedSale: Sale = {
+        id: completedTickets[0].order_number,
+        orderNumber: completedTickets[0].order_number,
+        customerName: completedTickets[0].customer_name,
+        customerPhone: completedTickets[0].customer_phone,
+        paymentStatus: completedTickets[0].payment_status,
+        paymentMethod: completedTickets[0].payment_method,
+        details: completedTickets[0].details,
+        eventId: completedTickets[0].event_id,
+        timestamp: completedTickets[0].purchase_date,
+        tickets: completedTickets
+    };
+
     return (
         <Modal title="Venda Concluída!" onClose={onClose}>
             <TicketCard sale={completedSale} event={event} />

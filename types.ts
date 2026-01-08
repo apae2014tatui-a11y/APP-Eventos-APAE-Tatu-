@@ -15,25 +15,38 @@ export interface Event {
 export type PaymentStatus = 'Pago' | 'A pagar' | 'Verificar depois';
 export type PaymentMethod = 'PIX' | 'Débito' | 'Crédito' | 'Dinheiro';
 
+/**
+ * Representa um único ingresso/participante, correspondendo a uma linha na tabela 'participantes'.
+ */
 export interface Ticket {
   id: string;
-  ticketTypeId: string;
-  saleId: string;
-  checkedIn: boolean;
-  uniqueTicketNumber: string; // Ex: #1001
-  paymentStatus: PaymentStatus; // Agora individual por ingresso
+  event_id: string;
+  customer_name: string;
+  customer_phone: string;
+  unique_ticket_number: string;
+  ticket_type_id: string;
+  payment_status: PaymentStatus;
+  payment_method: PaymentMethod;
+  details?: string;
+  checked_in: boolean;
+  purchase_date: string;
+  order_number: string;
 }
 
+/**
+ * Um tipo de conveniência para agrupar múltiplos `Ticket` de uma mesma compra na UI.
+ * Não corresponde a uma tabela no banco de dados.
+ */
 export interface Sale {
-  id: string;
-  eventId: string;
+  id: string; // Usaremos o orderNumber como ID único para o grupo
+  orderNumber: string;
   customerName: string;
   customerPhone: string;
-  paymentStatus: PaymentStatus; // Status geral do pedido (padrão)
+  paymentStatus: PaymentStatus; // Status do primeiro ingresso, para consistência
   paymentMethod: PaymentMethod;
   details?: string;
   tickets: Ticket[];
-  orderNumber: string;
+  eventId: string;
   timestamp: string;
 }
 

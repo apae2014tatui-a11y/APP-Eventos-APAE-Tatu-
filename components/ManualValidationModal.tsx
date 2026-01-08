@@ -1,16 +1,16 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Event, Sale, Ticket, PaymentStatus } from '../types';
+import { Event, Ticket, PaymentStatus } from '../types';
 import Modal from './Modal';
 
 interface ManualValidationModalProps {
   events: Event[];
-  sales: Sale[];
-  onUpdateTicket: (ticketId: string, updates: Partial<Ticket>) => void;
+  tickets: Ticket[];
+  onUpdateTicket: (ticketId: string, updates: Partial<Pick<Ticket, 'checked_in' | 'payment_status'>>) => void;
   onClose: () => void;
 }
 
-const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, sales, onUpdateTicket, onClose }) => {
+const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, tickets, onUpdateTicket, onClose }) => {
   const [selectedEventId, setSelectedEventId] = useState<string>(events[0]?.id || '');
   const [searchTerm, setSearchTerm] = useState('');
   const [justUpdatedTicketId, setJustUpdatedTicketId] = useState<string | null>(null);
@@ -24,7 +24,7 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
     }
   }, [justUpdatedTicketId]);
 
-  const handleUpdateTicket = (ticketId: string, updates: Partial<Ticket>) => {
+  const handleUpdateTicket = (ticketId: string, updates: Partial<Pick<Ticket, 'checked_in' | 'payment_status'>>) => {
     setJustUpdatedTicketId(ticketId);
     onUpdateTicket(ticketId, updates);
   };
@@ -32,29 +32,23 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
   const filteredTickets = useMemo(() => {
     if (!selectedEventId) return [];
     
-    const eventSales = sales.filter(s => s.eventId === selectedEventId);
     const event = events.find(e => e.id === selectedEventId);
-    
-    const allTickets = eventSales.flatMap(sale => 
-      sale.tickets.map(t => ({
+    const allTicketsForEvent = tickets
+      .filter(t => t.event_id === selectedEventId)
+      .map(t => ({
         ...t,
-        customerName: sale.customerName,
-        paymentMethod: sale.paymentMethod,
-        details: sale.details,
-        saleId: sale.id,
-        ticketTypeName: event?.ticketTypes.find(tt => tt.id === t.ticketTypeId)?.name || 'N/A'
-      }))
-    );
+        ticketTypeName: event?.ticketTypes.find(tt => tt.id === t.ticket_type_id)?.name || 'N/A'
+      }));
 
-    if (!searchTerm) return allTickets;
+    if (!searchTerm) return allTicketsForEvent;
 
     const lowerSearch = searchTerm.toLowerCase();
-    return allTickets.filter(t => 
-      t.customerName.toLowerCase().includes(lowerSearch) || 
-      t.uniqueTicketNumber.toLowerCase().includes(lowerSearch) ||
-      t.paymentStatus.toLowerCase().includes(lowerSearch)
+    return allTicketsForEvent.filter(t => 
+      t.customer_name.toLowerCase().includes(lowerSearch) || 
+      t.unique_ticket_number.toLowerCase().includes(lowerSearch) ||
+      t.payment_status.toLowerCase().includes(lowerSearch)
     );
-  }, [selectedEventId, sales, searchTerm, events]);
+  }, [selectedEventId, tickets, searchTerm, events]);
 
   const getStatusColor = (status: PaymentStatus) => {
     switch (status) {
@@ -106,26 +100,26 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                 {filteredTickets.length > 0 ? filteredTickets.map(t => (
-                  <tr key={t.id} className={`transition-colors duration-500 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 ${t.checkedIn ? 'bg-emerald-50/20 dark:bg-emerald-900/10' : ''} ${justUpdatedTicketId === t.id ? '!bg-indigo-100 dark:!bg-indigo-900/30' : ''}`}>
+                  <tr key={t.id} className={`transition-colors duration-500 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 ${t.checked_in ? 'bg-emerald-50/20 dark:bg-emerald-900/10' : ''} ${justUpdatedTicketId === t.id ? '!bg-indigo-100 dark:!bg-indigo-900/30' : ''}`}>
                     <td className="px-8 py-5">
-                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg">{t.uniqueTicketNumber}</span>
+                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg">{t.unique_ticket_number}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <div className="font-black text-gray-800 dark:text-gray-100 text-base">{t.customerName}</div>
+                      <div className="font-black text-gray-800 dark:text-gray-100 text-base">{t.customer_name}</div>
                       <div className="text-[10px] font-black text-gray-400 uppercase tracking-tighter mt-0.5">{t.ticketTypeName}</div>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex flex-col gap-1">
                         <select
-                          value={t.paymentStatus}
-                          onChange={(e) => handleUpdateTicket(t.id, { paymentStatus: e.target.value as PaymentStatus })}
-                          className={`appearance-none font-black text-[11px] uppercase px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm ${getStatusColor(t.paymentStatus)}`}
+                          value={t.payment_status}
+                          onChange={(e) => handleUpdateTicket(t.id, { payment_status: e.target.value as PaymentStatus })}
+                          className={`appearance-none font-black text-[11px] uppercase px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm ${getStatusColor(t.payment_status)}`}
                         >
                           <option value="Pago">Pago</option>
                           <option value="A pagar">A pagar</option>
                           <option value="Verificar depois">Verificar</option>
                         </select>
-                        <span className="text-[9px] font-bold text-gray-400 uppercase ml-1 italic">{t.paymentMethod}</span>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase ml-1 italic">{t.payment_method}</span>
                       </div>
                     </td>
                     <td className="px-8 py-5">
@@ -139,14 +133,14 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
                     </td>
                     <td className="px-8 py-5 text-center">
                       <button 
-                        onClick={() => handleUpdateTicket(t.id, { checkedIn: !t.checkedIn })}
+                        onClick={() => handleUpdateTicket(t.id, { checked_in: !t.checked_in })}
                         className={`min-w-[140px] px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md ${
-                          t.checkedIn 
+                          t.checked_in
                           ? 'bg-emerald-500 text-white shadow-emerald-200' 
                           : 'bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-500 dark:hover:bg-gray-600'
                         }`}
                       >
-                        {t.checkedIn ? '✓ Confirmado' : 'Validar Entrada'}
+                        {t.checked_in ? '✓ Confirmado' : 'Validar Entrada'}
                       </button>
                     </td>
                   </tr>

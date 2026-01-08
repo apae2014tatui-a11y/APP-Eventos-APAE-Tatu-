@@ -1,64 +1,70 @@
 
 -- ======================================================
--- SCRIPT DE CONFIGURAÇÃO FINAL - APAE EVENTOS (V7)
--- RESOLUÇÃO DEFINITIVA DE CACHE (AUTORELOAD)
+-- SCRIPT DE ARQUITETURA DE BANCO DE DADOS - V8
+-- MODELO GRANULAR: EVENTOS E PARTICIPANTES
 -- ======================================================
 
--- 1. LIMPEZA TOTAL COM CASCADE
+-- 1. LIMPEZA TOTAL DAS ESTRUTURAS ANTIGAS E NOVAS
+DROP TABLE IF EXISTS public.participantes CASCADE;
 DROP TABLE IF EXISTS public.sales CASCADE;
 DROP TABLE IF EXISTS public.eventos CASCADE;
-DROP TABLE IF EXISTS public.participantes CASCADE;
 
--- 2. RECRIAR TABELA DE EVENTOS
+-- 2. TABELA DE EVENTOS
+-- Armazena as informações centrais de cada evento.
 CREATE TABLE public.eventos (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     name text NOT NULL,
     date timestamptz NOT NULL,
-    tickettypes jsonb DEFAULT '[]'::jsonb
+    tickettypes jsonb DEFAULT '[]'::jsonb,
+    created_at timestamptz DEFAULT now()
 );
+COMMENT ON TABLE public.eventos IS 'Cadastro principal de eventos.';
 
--- 3. RECRIAR TABELA DE VENDAS
-CREATE TABLE public.sales (
+-- 3. TABELA DE PARTICIPANTES (INGRESSOS INDIVIDUAIS)
+-- Cada linha representa um único ingresso vendido.
+CREATE TABLE public.participantes (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    eventid uuid REFERENCES public.eventos(id) ON DELETE CASCADE,
-    customername text NOT NULL,
-    customerphone text,
-    paymentstatus text DEFAULT 'A pagar',
-    paymentmethod text DEFAULT 'PIX',
+    event_id uuid NOT NULL REFERENCES public.eventos(id) ON DELETE CASCADE,
+    customer_name text NOT NULL,
+    customer_phone text,
+    unique_ticket_number text NOT NULL UNIQUE,
+    ticket_type_id text NOT NULL, -- Referencia o ID dentro do JSONB de eventos.tickettypes
+    payment_status text NOT NULL,
+    payment_method text NOT NULL,
     details text,
-    ordernumber text,
-    timestamp timestamptz DEFAULT now(),
-    tickets jsonb DEFAULT '[]'::jsonb
+    checked_in boolean DEFAULT false,
+    purchase_date timestamptz DEFAULT now(),
+    order_number text NOT NULL -- Agrupa ingressos de uma mesma transação
 );
+COMMENT ON TABLE public.participantes IS 'Armazena cada ingresso individualmente, com informações do comprador e status.';
 
--- 4. PERMISSÕES EXPLÍCITAS (ESSENCIAL)
+-- 4. PERMISSÕES DE ACESSO
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 
--- 5. POLÍTICAS DE SEGURANÇA (RLS)
+-- 5. POLÍTICAS DE SEGURANÇA (ROW LEVEL SECURITY - RLS)
+-- Habilita RLS para as tabelas.
 ALTER TABLE public.eventos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.participantes ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Anon Full Access Eventos" ON public.eventos FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "Anon Full Access Sales" ON public.sales FOR ALL TO anon USING (true) WITH CHECK (true);
+-- Permite acesso público total para a aplicação, que usa a chave anônima.
+CREATE POLICY "Public full access on eventos" ON public.eventos FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on participantes" ON public.participantes FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- 6. ATIVAÇÃO DE REALTIME
+-- Garante que o Supabase irá notificar a aplicação sobre qualquer mudança nos dados.
 ALTER TABLE public.eventos REPLICA IDENTITY FULL;
-ALTER TABLE public.sales REPLICA IDENTITY FULL;
+ALTER TABLE public.participantes REPLICA IDENTITY FULL;
+-- Garante que a publicação de realtime inclua as novas tabelas
+-- (geralmente automático, mas explícito para garantir)
+-- DROP PUBLICATION IF EXISTS supabase_realtime;
+-- CREATE PUBLICATION supabase_realtime FOR ALL TABLES;
 
--- 7. FORÇAR RELOAD DO SCHEMA CACHE (POSTGREST)
--- Este comando envia um sinal para o serviço de API do Supabase atualizar o mapa de tabelas
+-- 7. ATUALIZAÇÃO DO CACHE DO SUPABASE
+-- Notifica o PostgREST para recarregar seu schema e reconhecer as novas tabelas e políticas.
 NOTIFY pgrst, 'reload schema';
 
--- 8. COMENTÁRIOS DE CONTROLE
-COMMENT ON TABLE public.eventos IS 'V7 - Schema Refresh Signal Sent';
-COMMENT ON TABLE public.sales IS 'V7 - Schema Refresh Signal Sent';
-
 -- ======================================================
--- NOTA IMPORTANTE SOBRE A API KEY:
--- O erro "Could not find table" também ocorre se a 
--- SUPABASE_ANON_KEY no arquivo supabase.ts for inválida.
--- Certifique-se de que ela começa com "eyJ..." (JWT).
+-- FIM DO SCRIPT
 -- ======================================================

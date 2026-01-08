@@ -1,43 +1,36 @@
 
 import React, { useMemo, useState } from 'react';
-import { Event, Sale, Ticket } from '../types';
+import { Event, Ticket } from '../types';
 import Modal from './Modal';
 
 interface AttendeeListModalProps {
   event: Event;
-  sales: Sale[];
+  tickets: Ticket[]; // Alterado de sales para tickets
   onClose: () => void;
 }
 
-const AttendeeListModal: React.FC<AttendeeListModalProps> = ({ event, sales, onClose }) => {
+const AttendeeListModal: React.FC<AttendeeListModalProps> = ({ event, tickets, onClose }) => {
   const [filter, setFilter] = useState('');
 
   const stats = useMemo(() => {
-    const totalTickets = sales.reduce((acc, s) => acc + s.tickets.length, 0);
-    const totalCheckedIn = sales.reduce((acc, s) => acc + s.tickets.filter(t => t.checkedIn).length, 0);
+    const totalTickets = tickets.length;
+    const totalCheckedIn = tickets.filter(t => t.checked_in).length;
     return { totalTickets, totalCheckedIn };
-  }, [sales]);
+  }, [tickets]);
 
   const flatAttendees = useMemo(() => {
-    const all = sales.flatMap(sale => 
-      sale.tickets.map(t => ({
-        ...t,
-        customerName: sale.customerName,
-        customerPhone: sale.customerPhone,
-        paymentStatus: sale.paymentStatus,
-        paymentMethod: sale.paymentMethod,
-        details: sale.details,
-        ticketTypeName: event.ticketTypes.find(tt => tt.id === t.ticketTypeId)?.name || '---'
-      }))
-    );
+    const all = tickets.map(t => ({
+      ...t,
+      ticketTypeName: event.ticketTypes.find(tt => tt.id === t.ticket_type_id)?.name || '---'
+    }));
     
     if (!filter) return all;
     const lower = filter.toLowerCase();
     return all.filter(a => 
-      a.customerName.toLowerCase().includes(lower) || 
-      a.uniqueTicketNumber.toLowerCase().includes(lower)
+      a.customer_name.toLowerCase().includes(lower) || 
+      a.unique_ticket_number.toLowerCase().includes(lower)
     );
-  }, [sales, event, filter]);
+  }, [tickets, event, filter]);
 
   return (
     <Modal title={`Gestão de Ingressos: ${event.name}`} onClose={onClose}>
@@ -77,20 +70,20 @@ const AttendeeListModal: React.FC<AttendeeListModalProps> = ({ event, sales, onC
                 {flatAttendees.length > 0 ? flatAttendees.map(at => (
                   <tr key={at.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="font-mono font-black text-indigo-600 text-xs">{at.uniqueTicketNumber}</span>
+                      <span className="font-mono font-black text-indigo-600 text-xs">{at.unique_ticket_number}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-800 dark:text-gray-100">{at.customerName}</div>
+                      <div className="font-bold text-gray-800 dark:text-gray-100">{at.customer_name}</div>
                       <div className="text-[10px] font-bold text-gray-400 uppercase">{at.ticketTypeName}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className={`text-[10px] font-black uppercase ${at.paymentStatus === 'Pago' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {at.paymentStatus}
+                      <div className={`text-[10px] font-black uppercase ${at.payment_status === 'Pago' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {at.payment_status}
                       </div>
-                      <div className="text-[9px] text-gray-400 font-bold">{at.paymentMethod}</div>
+                      <div className="text-[9px] text-gray-400 font-bold">{at.payment_method}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {at.checkedIn ? (
+                      {at.checked_in ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase">
                           No Evento
                         </span>

@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Event, Sale, Ticket, ModalState, PaymentStatus, PaymentMethod } from './types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Event, Sale, Ticket, ModalState } from './types';
 import { supabaseClient } from './supabase';
 import Header from './components/Header';
 import EventList from './components/EventList';
@@ -13,47 +13,34 @@ import AttendeeListModal from './components/AttendeeListModal';
 
 const App: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]); // Alterado de sales para tickets (participantes)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalState, setModalState] = useState<ModalState>({ type: 'NONE' });
-  
-  const isFetching = useRef(false);
 
   const fetchInitialData = useCallback(async () => {
-    // Permitimos múltiplas chamadas se forem disparadas pelo realtime
     try {
       const { data: eventsData, error: eError } = await supabaseClient
         .from('eventos')
         .select('id, name, date, tickettypes')
         .order('date', { ascending: true });
-        
-      const { data: salesData, error: sError } = await supabaseClient
-        .from('sales')
-        .select('id, eventid, customername, customerphone, paymentstatus, paymentmethod, details, ordernumber, timestamp, tickets')
-        .order('timestamp', { ascending: false });
+      
+      const { data: participantsData, error: pError } = await supabaseClient
+        .from('participantes')
+        .select('*')
+        .order('purchase_date', { ascending: false });
       
       if (eError) throw eError;
-      if (sError) throw sError;
+      if (pError) throw pError;
 
       const mappedEvents = (eventsData || []).map((e: any) => ({
         ...e,
         ticketTypes: e.tickettypes || []
       }));
-
-      const mappedSales = (salesData || []).map((s: any) => ({
-        ...s,
-        eventId: s.eventid,
-        customerName: s.customername,
-        customerPhone: s.customerphone,
-        paymentStatus: s.paymentstatus,
-        paymentMethod: s.paymentmethod,
-        orderNumber: s.ordernumber,
-        tickets: s.tickets || []
-      }));
-
+      
+      // A tabela agora é 'participantes', que corresponde ao nosso tipo 'Ticket'
       setEvents(mappedEvents);
-      setSales(mappedSales);
+      setTickets(participantsData || []);
       setError(null);
     } catch (err: any) {
       setError(err?.message || "Erro de conexão");
@@ -65,17 +52,40 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchInitialData();
 
-    // ESCUTA EM TEMPO REAL: Qualquer mudança no banco atualiza a UI instantaneamente
     const channel = supabaseClient
       .channel('db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, () => fetchInitialData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => fetchInitialData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participantes' }, () => fetchInitialData())
       .subscribe();
 
     return () => {
       supabaseClient.removeChannel(channel);
     };
   }, [fetchInitialData]);
+
+  const sales = useMemo((): Sale[] => {
+    const salesMap = new Map<string, Sale>();
+    tickets.forEach(ticket => {
+      const sale = salesMap.get(ticket.order_number);
+      if (sale) {
+        sale.tickets.push(ticket);
+      } else {
+        salesMap.set(ticket.order_number, {
+          id: ticket.order_number,
+          orderNumber: ticket.order_number,
+          customerName: ticket.customer_name,
+          customerPhone: ticket.customer_phone,
+          paymentStatus: ticket.payment_status,
+          paymentMethod: ticket.payment_method,
+          details: ticket.details,
+          eventId: ticket.event_id,
+          timestamp: ticket.purchase_date,
+          tickets: [ticket]
+        });
+      }
+    });
+    return Array.from(salesMap.values());
+  }, [tickets]);
 
   const handleOpenModal = (type: ModalState['type'], event?: Event) => {
     setModalState({ type, event });
@@ -101,91 +111,63 @@ const App: React.FC = () => {
     }
   };
   
-  const addSale = async (saleData: any) => {
-    const { count: totalSalesCount } = await supabaseClient
-      .from('sales')
+  const addSale = async (saleData: any): Promise<Ticket[]> => {
+    const { count: totalTicketsCount } = await supabaseClient
+      .from('participantes')
       .select('*', { count: 'exact', head: true });
 
     const currentYear = new Date().getFullYear();
-    const startSeq = 1001 + (totalSalesCount || 0) * 5; 
+    const orderNumber = `ORD-${currentYear}-${((totalTicketsCount || 0) + 1).toString().padStart(4, '0')}`;
     
-    const individualTickets: Ticket[] = [];
-    let localOffset = 0;
-    
+    const participantsToInsert: Omit<Ticket, 'id' | 'purchase_date'>[] = [];
+    let startSeq = 1001 + (totalTicketsCount || 0);
+
     saleData.ticketRequests.forEach((req: any) => {
       for (let i = 0; i < req.qty; i++) {
-        individualTickets.push({
-          id: crypto.randomUUID(),
-          saleId: "", 
-          ticketTypeId: req.typeId,
-          checkedIn: false,
-          uniqueTicketNumber: `#${startSeq + localOffset}`,
-          paymentStatus: saleData.paymentStatus // Inicia com o status geral
+        participantsToInsert.push({
+          event_id: saleData.eventId,
+          customer_name: saleData.customerName,
+          customer_phone: saleData.customerPhone,
+          unique_ticket_number: `#${startSeq++}`,
+          ticket_type_id: req.typeId,
+          payment_status: saleData.paymentStatus,
+          payment_method: saleData.paymentMethod,
+          details: saleData.details || "",
+          checked_in: false,
+          order_number: orderNumber,
         });
-        localOffset++;
       }
     });
 
-    const orderNumber = `ORD-${currentYear}-${((totalSalesCount || 0) + 1).toString().padStart(4, '0')}`;
-    
-    const finalSale = {
-      eventid: saleData.eventId,
-      customername: saleData.customerName,
-      customerphone: saleData.customerPhone,
-      paymentstatus: saleData.paymentStatus,
-      paymentmethod: saleData.paymentMethod,
-      details: saleData.details || "",
-      ordernumber: orderNumber,
-      timestamp: new Date().toISOString(),
-      tickets: individualTickets
-    };
+    const { data, error } = await supabaseClient
+      .from('participantes')
+      .insert(participantsToInsert)
+      .select();
 
-    const { data, error } = await supabaseClient.from('sales').insert([finalSale]).select();
     if (error) throw error;
-    return data[0] as Sale;
+    return data as Ticket[];
   };
   
-  const updateTicketIndividualStatus = useCallback(async (ticketId: string, updates: Partial<Ticket>) => {
-    const originalSales = sales;
-    let updatedSale: Sale | null = null;
+  const updateTicket = useCallback(async (ticketId: string, updates: Partial<Pick<Ticket, 'checked_in' | 'payment_status'>>) => {
+    const originalTickets = tickets;
+    const dbUpdates: any = {};
+    if (updates.payment_status !== undefined) dbUpdates.payment_status = updates.payment_status;
+    if (updates.checked_in !== undefined) dbUpdates.checked_in = updates.checked_in;
 
-    const newSales = originalSales.map(sale => ({
-      ...sale,
-      tickets: sale.tickets.map(ticket => {
-        if (ticket.id === ticketId) {
-          return { ...ticket, ...updates };
-        }
-        return ticket;
-      })
-    }));
-
-    for (const sale of newSales) {
-      if (sale.tickets.some(t => t.id === ticketId)) {
-        updatedSale = sale;
-        break;
-      }
-    }
+    setTickets(currentTickets => currentTickets.map(ticket => 
+      ticket.id === ticketId ? { ...ticket, ...updates } : ticket
+    ));
     
-    if (!updatedSale) {
-      console.error("Não foi possível encontrar a venda para atualizar.");
-      return;
-    }
-    
-    // ATUALIZAÇÃO OTIMISTA: Muda a UI imediatamente
-    setSales(newSales);
-
-    // PERSISTÊNCIA: Envia a alteração para o banco de dados
     const { error } = await supabaseClient
-      .from('sales')
-      .update({ tickets: updatedSale.tickets })
-      .eq('id', updatedSale.id);
+      .from('participantes')
+      .update(dbUpdates)
+      .eq('id', ticketId);
 
-    // REVERSÃO EM CASO DE ERRO: Se a sincronização falhar, desfaz a alteração e notifica o usuário
     if (error) {
         alert("Erro ao sincronizar: " + error.message + "\n\nA alteração não foi salva.");
-        setSales(originalSales);
+        setTickets(originalTickets);
     }
-  }, [sales]);
+  }, [tickets]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans pb-20 selection:bg-indigo-100">
@@ -242,15 +224,15 @@ const App: React.FC = () => {
       {modalState.type === 'MANUAL_VALIDATION' && (
         <ManualValidationModal 
           events={events} 
-          sales={sales} 
-          onUpdateTicket={updateTicketIndividualStatus} 
+          tickets={tickets} 
+          onUpdateTicket={updateTicket} 
           onClose={handleCloseModal} 
         />
       )}
       {modalState.type === 'ATTENDEE_LIST' && modalState.event && (
         <AttendeeListModal 
           event={modalState.event} 
-          sales={sales.filter(s => s.eventId === modalState.event!.id)} 
+          tickets={tickets.filter(t => t.event_id === modalState.event!.id)} 
           onClose={handleCloseModal} 
         />
       )}
