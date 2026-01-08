@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Event, Sale, Ticket, PaymentStatus } from '../types';
 import Modal from './Modal';
 
@@ -13,6 +13,21 @@ interface ManualValidationModalProps {
 const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, sales, onUpdateTicket, onClose }) => {
   const [selectedEventId, setSelectedEventId] = useState<string>(events[0]?.id || '');
   const [searchTerm, setSearchTerm] = useState('');
+  const [justUpdatedTicketId, setJustUpdatedTicketId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (justUpdatedTicketId) {
+      const timer = setTimeout(() => {
+        setJustUpdatedTicketId(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [justUpdatedTicketId]);
+
+  const handleUpdateTicket = (ticketId: string, updates: Partial<Ticket>) => {
+    setJustUpdatedTicketId(ticketId);
+    onUpdateTicket(ticketId, updates);
+  };
 
   const filteredTickets = useMemo(() => {
     if (!selectedEventId) return [];
@@ -84,14 +99,14 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
                 <tr>
                   <th className="px-8 py-5">Nº Ingresso</th>
                   <th className="px-8 py-5">Participante</th>
-                  <th className="px-8 py-5">Financeiro Individual</th>
+                  <th className="px-8 py-5">Status de Pagamento</th>
                   <th className="px-8 py-5">Observações</th>
                   <th className="px-8 py-5 text-center">Status Presença</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                 {filteredTickets.length > 0 ? filteredTickets.map(t => (
-                  <tr key={t.id} className={`transition-all hover:bg-gray-50/50 dark:hover:bg-gray-700/20 ${t.checkedIn ? 'bg-emerald-50/20 dark:bg-emerald-900/10' : ''}`}>
+                  <tr key={t.id} className={`transition-colors duration-500 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 ${t.checkedIn ? 'bg-emerald-50/20 dark:bg-emerald-900/10' : ''} ${justUpdatedTicketId === t.id ? '!bg-indigo-100 dark:!bg-indigo-900/30' : ''}`}>
                     <td className="px-8 py-5">
                       <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg">{t.uniqueTicketNumber}</span>
                     </td>
@@ -103,7 +118,7 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
                       <div className="flex flex-col gap-1">
                         <select
                           value={t.paymentStatus}
-                          onChange={(e) => onUpdateTicket(t.id, { paymentStatus: e.target.value as PaymentStatus })}
+                          onChange={(e) => handleUpdateTicket(t.id, { paymentStatus: e.target.value as PaymentStatus })}
                           className={`appearance-none font-black text-[11px] uppercase px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm ${getStatusColor(t.paymentStatus)}`}
                         >
                           <option value="Pago">Pago</option>
@@ -124,11 +139,11 @@ const ManualValidationModal: React.FC<ManualValidationModalProps> = ({ events, s
                     </td>
                     <td className="px-8 py-5 text-center">
                       <button 
-                        onClick={() => onUpdateTicket(t.id, { checkedIn: !t.checkedIn })}
+                        onClick={() => handleUpdateTicket(t.id, { checkedIn: !t.checkedIn })}
                         className={`min-w-[140px] px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md ${
                           t.checkedIn 
                           ? 'bg-emerald-500 text-white shadow-emerald-200' 
-                          : 'bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50'
+                          : 'bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-500 dark:hover:bg-gray-600'
                         }`}
                       >
                         {t.checkedIn ? '✓ Confirmado' : 'Validar Entrada'}

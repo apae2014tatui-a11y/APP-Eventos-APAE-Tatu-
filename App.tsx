@@ -145,22 +145,46 @@ const App: React.FC = () => {
     return data[0] as Sale;
   };
   
-  // ATUALIZAÇÃO INDIVIDUAL: Busca o pedido, altera apenas o ingresso alvo e salva o array inteiro de volta
   const updateTicketIndividualStatus = useCallback(async (ticketId: string, updates: Partial<Ticket>) => {
-    const sale = sales.find(s => s.tickets.some(t => t.id === ticketId));
-    if (!sale) return;
+    const originalSales = sales;
+    let updatedSale: Sale | null = null;
 
-    const updatedTickets = sale.tickets.map(t => 
-      t.id === ticketId ? { ...t, ...updates } : t
-    );
+    const newSales = originalSales.map(sale => ({
+      ...sale,
+      tickets: sale.tickets.map(ticket => {
+        if (ticket.id === ticketId) {
+          return { ...ticket, ...updates };
+        }
+        return ticket;
+      })
+    }));
 
-    // Atualiza o banco (o Realtime cuidará de atualizar a UI para todos)
+    for (const sale of newSales) {
+      if (sale.tickets.some(t => t.id === ticketId)) {
+        updatedSale = sale;
+        break;
+      }
+    }
+    
+    if (!updatedSale) {
+      console.error("Não foi possível encontrar a venda para atualizar.");
+      return;
+    }
+    
+    // ATUALIZAÇÃO OTIMISTA: Muda a UI imediatamente
+    setSales(newSales);
+
+    // PERSISTÊNCIA: Envia a alteração para o banco de dados
     const { error } = await supabaseClient
       .from('sales')
-      .update({ tickets: updatedTickets })
-      .eq('id', sale.id);
+      .update({ tickets: updatedSale.tickets })
+      .eq('id', updatedSale.id);
 
-    if (error) alert("Erro ao salvar alteração: " + error.message);
+    // REVERSÃO EM CASO DE ERRO: Se a sincronização falhar, desfaz a alteração e notifica o usuário
+    if (error) {
+        alert("Erro ao sincronizar: " + error.message + "\n\nA alteração não foi salva.");
+        setSales(originalSales);
+    }
   }, [sales]);
 
   return (
@@ -191,7 +215,7 @@ const App: React.FC = () => {
           onClick={() => handleOpenModal('CREATE_EVENT')}
           className="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all transform hover:scale-110 z-40 active:scale-90"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 M 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </button>
       </main>
 
@@ -219,7 +243,7 @@ const App: React.FC = () => {
         <ManualValidationModal 
           events={events} 
           sales={sales} 
-          onUpdateTicket={(ticketId, updates) => updateTicketIndividualStatus(ticketId, updates)} 
+          onUpdateTicket={updateTicketIndividualStatus} 
           onClose={handleCloseModal} 
         />
       )}
