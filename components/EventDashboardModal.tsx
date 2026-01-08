@@ -20,7 +20,8 @@ const EventDashboardModal: React.FC<EventDashboardModalProps> = ({ event, sales,
 
     sales.forEach(sale => {
       const saleRevenue = sale.tickets.reduce((acc, t) => {
-        const tt = event.ticketTypes.find(type => type.id === t.ticketTypeId);
+        // FIX: A propriedade correta é 'ticket_type_id' em vez de 'ticketTypeId'.
+        const tt = event.ticketTypes.find(type => type.id === t.ticket_type_id);
         return acc + (tt?.price || 0);
       }, 0);
 
@@ -29,7 +30,8 @@ const EventDashboardModal: React.FC<EventDashboardModalProps> = ({ event, sales,
       else totalPending += saleRevenue;
 
       totalTickets += sale.tickets.length;
-      totalCheckIns += sale.tickets.filter(t => t.checkedIn).length;
+      // FIX: A propriedade correta é 'checked_in' em vez de 'checkedIn'.
+      totalCheckIns += sale.tickets.filter(t => t.checked_in).length;
     });
 
     return { totalRevenue, totalPaid, totalPending, totalTickets, totalCheckIns };

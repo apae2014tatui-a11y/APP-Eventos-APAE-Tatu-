@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [modalState, setModalState] = useState<ModalState>({ type: 'NONE' });
 
   const fetchInitialData = useCallback(async () => {
+    setLoading(true);
     try {
       const { data: eventsData, error: eError } = await supabaseClient
         .from('eventos')
@@ -38,7 +39,6 @@ const App: React.FC = () => {
         ticketTypes: e.tickettypes || []
       }));
       
-      // A tabela agora é 'participantes', que corresponde ao nosso tipo 'Ticket'
       setEvents(mappedEvents);
       setTickets(participantsData || []);
       setError(null);
@@ -52,10 +52,29 @@ const App: React.FC = () => {
   useEffect(() => {
     fetchInitialData();
 
-    const channel = supabaseClient
-      .channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, () => fetchInitialData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'participantes' }, () => fetchInitialData())
+    const channel = supabaseClient.channel('db-changes');
+
+    channel
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'eventos' }, (payload) => {
+        const newEvent = { ...payload.new, ticketTypes: payload.new.tickettypes || [] };
+        setEvents(currentEvents => [newEvent, ...currentEvents]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'eventos' }, (payload) => {
+        const updatedEvent = { ...payload.new, ticketTypes: payload.new.tickettypes || [] };
+        setEvents(currentEvents => currentEvents.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'eventos' }, (payload) => {
+        setEvents(currentEvents => currentEvents.filter(e => e.id !== payload.old.id));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participantes' }, (payload) => {
+        setTickets(currentTickets => [payload.new as Ticket, ...currentTickets]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'participantes' }, (payload) => {
+        setTickets(currentTickets => currentTickets.map(t => t.id === payload.new.id ? payload.new as Ticket : t));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'participantes' }, (payload) => {
+        setTickets(currentTickets => currentTickets.filter(t => t.id !== payload.old.id));
+      })
       .subscribe();
 
     return () => {
@@ -149,11 +168,12 @@ const App: React.FC = () => {
   };
   
   const updateTicket = useCallback(async (ticketId: string, updates: Partial<Pick<Ticket, 'checked_in' | 'payment_status'>>) => {
-    const originalTickets = tickets;
+    const originalTickets = [...tickets]; // Faz uma cópia para o caso de reversão
     const dbUpdates: any = {};
     if (updates.payment_status !== undefined) dbUpdates.payment_status = updates.payment_status;
     if (updates.checked_in !== undefined) dbUpdates.checked_in = updates.checked_in;
-
+    
+    // Atualização otimista da UI
     setTickets(currentTickets => currentTickets.map(ticket => 
       ticket.id === ticketId ? { ...ticket, ...updates } : ticket
     ));
@@ -164,8 +184,8 @@ const App: React.FC = () => {
       .eq('id', ticketId);
 
     if (error) {
-        alert("Erro ao sincronizar: " + error.message + "\n\nA alteração não foi salva.");
-        setTickets(originalTickets);
+        alert("Erro ao sincronizar: " + error.message + "\n\nA alteração não foi salva e será revertida.");
+        setTickets(originalTickets); // Reverte a UI em caso de erro
     }
   }, [tickets]);
 

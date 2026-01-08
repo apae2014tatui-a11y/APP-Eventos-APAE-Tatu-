@@ -49,7 +49,8 @@ const TicketCard: React.FC<TicketCardProps> = ({ sale, event }) => {
         logging: false,
         backgroundColor: '#ffffff',
       }).then((canvas: HTMLCanvasElement) => {
-        const ticketNumber = ticketToRender.uniqueTicketNumber.replace('#', '');
+        // FIX: A propriedade correta é 'unique_ticket_number' em vez de 'uniqueTicketNumber'.
+        const ticketNumber = ticketToRender.unique_ticket_number.replace('#', '');
         const customerName = sanitizeFilename(sale.customerName);
         const eventName = sanitizeFilename(event.name);
         const eventDate = formatDateForFilename(event.date);
@@ -60,13 +61,16 @@ const TicketCard: React.FC<TicketCardProps> = ({ sale, event }) => {
         link.href = canvas.toDataURL('image/png');
         link.click();
 
-        // Limpa os estados após o download
-        setRenderingTicketId(null);
-        setTicketToRender(null);
-
         if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
           alert(`Comprovante ${ticketNumber} salvo na galeria.`);
         }
+      }).catch((error) => {
+        console.error("Erro ao gerar canvas:", error);
+        alert(`Falha ao gerar o comprovante: ${error.message}`);
+      }).finally(() => {
+        // Limpa os estados após o download (sucesso ou falha)
+        setRenderingTicketId(null);
+        setTicketToRender(null);
       });
     }
   }, [ticketToRender, sale, event]);
@@ -90,7 +94,8 @@ const TicketCard: React.FC<TicketCardProps> = ({ sale, event }) => {
             <div className="space-y-4 text-left">
               <div>
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Número do Ingresso</p>
-                <p className="text-2xl font-black text-indigo-600 font-mono tracking-tight">{ticketToRender.uniqueTicketNumber}</p>
+                {/* FIX: A propriedade correta é 'unique_ticket_number' em vez de 'uniqueTicketNumber'. */}
+                <p className="text-2xl font-black text-indigo-600 font-mono tracking-tight">{ticketToRender.unique_ticket_number}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Nome do Cliente</p>
@@ -123,9 +128,11 @@ const TicketCard: React.FC<TicketCardProps> = ({ sale, event }) => {
         {sale.tickets.map(ticket => (
           <div key={ticket.id} className="bg-white dark:bg-gray-700 p-4 rounded-2xl shadow-md border border-gray-100 dark:border-gray-600 flex justify-between items-center">
             <div>
-              <p className="font-black text-indigo-600 dark:text-indigo-400">{ticket.uniqueTicketNumber}</p>
+              {/* FIX: A propriedade correta é 'unique_ticket_number' em vez de 'uniqueTicketNumber'. */}
+              <p className="font-black text-indigo-600 dark:text-indigo-400">{ticket.unique_ticket_number}</p>
               <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">
-                {event.ticketTypes.find(tt => tt.id === ticket.ticketTypeId)?.name}
+                {/* FIX: A propriedade correta é 'ticket_type_id' em vez de 'ticketTypeId'. */}
+                {event.ticketTypes.find(tt => tt.id === ticket.ticket_type_id)?.name}
               </p>
             </div>
             <button
